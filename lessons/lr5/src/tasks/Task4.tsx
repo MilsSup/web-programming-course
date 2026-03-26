@@ -5,6 +5,7 @@ import { usePostApiSessions } from '../../generated/api/sessions/sessions';
 import { usePostApiSessionsSessionIdAnswers } from '../../generated/api/sessions/sessions';
 import { usePostApiSessionsSessionIdSubmit } from '../../generated/api/sessions/sessions';
 import { useState } from 'react';
+import { queryOptions } from '@tanstack/react-query';
 
 
 
@@ -33,7 +34,7 @@ const Task4 = observer(() => {
   const score = gameStore.score;
   const progress = gameStore.progress;
   const [sessionId, setSessionId] = useState<string | null>(null);
-
+  const [essayAnswer, setEssayAnswer] = useState("");
   const createSession = usePostApiSessions();
 
   const handleStartGame = () => {
@@ -60,14 +61,15 @@ const Task4 = observer(() => {
 
 const handleNextQuestion = () => {
   // use the selectedAnswer (singular) and ensure it's set before submitting
-  if (sessionId && currentQuestion && selectedAnswer !== null) {
+  if (sessionId && currentQuestion && (selectedAnswer && selectedAnswer.length > 0 || essayAnswer.length > 0)) {
     // Отправляем ответ на сервер (payload goes under `data` as required by the generated hook)
     submitAnswer.mutate(
       {
         sessionId,
         data: {
           questionId: String(currentQuestion.id),
-          selectedOptions: selectedAnswer,
+          selectedOptions: currentQuestion.type === 'essay' ? [] : selectedAnswer,
+          text: currentQuestion.type === 'essay' ? essayAnswer : undefined,
         },
       },
       {
@@ -75,6 +77,8 @@ const handleNextQuestion = () => {
           console.log('Answer submitted:', response);
 
           gameStore.nextQuestion();
+          if (gameStore.gameStatus === 'finished')
+            handleFinishGame();
         },
         onError: (error: unknown) => {
           console.error('Failed to submit answer:', error);
@@ -277,12 +281,22 @@ const handleFinishGame = () => {
           </h2>
 
           {/* Варианты ответов */}
-          <div className="space-y-3">
+          {currentQuestion.type === 'essay' ?
+            <div className='space-y-3'>
+              <textarea
+              value ={essayAnswer || ''}
+              onChange={(e) => setEssayAnswer(e.target.value)}
+              >
+
+              </textarea>
+        </div>
+          : null
+          }
+          {currentQuestion.options && <div className="space-y-3">
             {currentQuestion.options.map((option, index) => {
               const isSelected = selectedAnswer.includes(index);
-              const isCorrect = index === currentQuestion.correctAnswer;
               const showResult = selectedAnswer !== null;
-
+              const isCorrect = false;
               return (
                 <button
                   key={index}
@@ -314,13 +328,13 @@ const handleFinishGame = () => {
                 </button>
               );
             })}
-          </div>
-
+          </div>}
+          
           {/* Кнопка "Далее" */}
           {/* TODO: убрать комментарий после реализации gameStore */}
           {gameStore.selectedAnswers.length > 0 && (
           <button
-              onClick={gameStore.isLastQuestion ? handleFinishGame : handleNextQuestion}
+              onClick={handleNextQuestion}
               disabled={submitAnswer.isPending || submitSession.isPending}
             >
               {gameStore.isLastQuestion ? 'Завершить' : 'Следующий вопрос'}

@@ -1,4 +1,4 @@
-import { Auth } from './components/Auth/Auth.tsx';
+import { Auth } from '@course/auth-component';
 import Task4 from './tasks/Task4.tsx';
 
 

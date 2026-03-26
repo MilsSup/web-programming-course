@@ -1,6 +1,5 @@
 import { makeAutoObservable } from 'mobx';
 import { Question, Answer } from '../types/quiz';
-import { mockQuestions } from '../data/questions';
 import { QuestionPreview } from '../../generated/api/quizBattleAPI.schemas';
 
 /**
@@ -13,7 +12,7 @@ class GameStore {
   gameStatus: 'idle' | 'playing' | 'finished' = 'idle';
 
   // TODO: Добавьте другие поля состояния:
-  questions: Question[] = [];
+  questions: QuestionPreview[] = [];
   currentQuestionIndex = 0;
   score = 0;
   selectedAnswers: number[] = [];
@@ -27,7 +26,6 @@ class GameStore {
 
   startGame() {
     this.gameStatus = 'playing';
-    this.questions = mockQuestions;
     this.currentQuestionIndex = 0;
     this.score = 0;
     this.selectedAnswers = [];
@@ -63,16 +61,11 @@ class GameStore {
   const question = this.currentQuestion;
   if (!question) return;
 
-  const isCorrect = this.selectedAnswers.includes(question.correctAnswer);
-
-  if (isCorrect) {
-    this.score++;
-  }
 
   this.answeredQuestions.push({
     questionId: question.id,
     selectedAnswer: this.selectedAnswers[0],
-    isCorrect,
+    isCorrect: false,
   });
 }
 
@@ -100,7 +93,7 @@ class GameStore {
   }
 
 setQuestionsFromAPI(questions: QuestionPreview[]) {
-  this.questions = questions as unknown as Question[];
+  this.questions = questions;
 }
 
   updateAnswerResult(questionId: number, isCorrect: boolean) {
@@ -111,7 +104,7 @@ setQuestionsFromAPI(questions: QuestionPreview[]) {
 
   }
 
-  get currentQuestion(): Question | null {
+  get currentQuestion(): QuestionPreview | null {
     return this.questions[this.currentQuestionIndex] ?? null;
   }
 
