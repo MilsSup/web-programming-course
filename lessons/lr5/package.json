@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:run": "vitest run",
     "preview": "vite preview",
     "codegen": "orval",
     "codegen:watch": "orval --watch",
@@ -16,6 +20,7 @@
     "@tanstack/react-query": "^5.59.16",
     "@tanstack/react-query-devtools": "^5.59.16",
     "axios": "^1.7.7",
+    "coverage-v8": "^0.0.1-security",
     "mobx": "^6.13.5",
     "mobx-react-lite": "^4.0.7",
     "react": "^18.3.1",
@@ -23,14 +28,25 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@types/testing-library__react": "^10.0.1",
     "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.20",
+    "baseline-browser-mapping": "^2.9.19",
+    "jest": "^30.2.0",
+    "jsdom": "^28.0.0",
+    "jsdom-global": "^3.0.2",
     "orval": "^7.2.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vitest": "^4.0.18"
   }
 }

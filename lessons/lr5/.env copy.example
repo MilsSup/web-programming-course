@@ -8,5 +8,4 @@ VITE_GITHUB_REDIRECT_URI=http://localhost:5173
 # API Backend URL
 # В dev: http://localhost:3000 (mock-server)
 # В prod: https://your-domain.com (реальный бэкенд преподавателя)
-VITE_API_URL=http://83.246.202.150 
-#http://dancv.ddns.net
+VITE_API_URL=http://dancv.ddns.net
