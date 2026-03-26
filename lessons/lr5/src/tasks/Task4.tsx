@@ -8,6 +8,8 @@ import * as React from 'react'
 import { StartScreen } from './StartScreen';
 import { FinishScreen } from './FinishScreen';
 import { GameScreen } from './Game';
+import { useState } from 'react';
+import { runInAction } from 'mobx';
 
 /**
  * Task 4: Комбинированное использование MobX + Zustand
@@ -17,7 +19,7 @@ const Task4 = observer(() => {
   const { 
     gameStatus, 
     currentQuestion,
-    selectedAnswers, 
+    //selectedAnswers, 
     essayAnswer,
     score, 
     //progress,
@@ -37,20 +39,31 @@ const Task4 = observer(() => {
   const createSession = usePostApiSessions();
   const submitAnswer = usePostApiSessionsSessionIdAnswers();
   const submitSession = usePostApiSessionsSessionIdSubmit();
-
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
+  
+  
   const handleStartGame = () => {
     createSession.mutate(
       {
         data: {
+          // @ts-ignore
+          categoryId: 'cmmm03e3f0000p93kx7z6kseo', 
           questionCount: 5,
           difficulty: 'medium'
         }
       },
       {
         onSuccess: (response) => {
-          setSessionId(response.sessionId);
-          // Загружаем вопросы в gameStore
-          gameStore.startGame(response.questions);
+          // 1. Достаем саму сессию из ответа бэкенда
+          const currentSession = (response as any).session;
+
+          // 2. Берем ID сессии (обычно в базе Prisma это поле называется id)
+          setSessionId(currentSession.id); 
+          console.log("❓ ВОПРОСЫ:", JSON.stringify(currentSession.questions, null, 2));
+
+          // 3. Передаем правильный массив вопросов в игру!
+          gameStore.startGame(currentSession.questions);
         },
         onError: (error) => {
           console.error('Failed to create session:', error);
@@ -59,50 +72,48 @@ const Task4 = observer(() => {
     );
   };
 
-  const handleNextQuestion = () => {
-    if (sessionId && currentQuestion) {
-      // Определяем тип вопроса и формируем данные для отправки
-      let answerData;
-      
-      if (currentQuestion.type === 'essay') {
-        // Для эссе отправляем текстовый ответ
-        answerData = {
-          questionId: currentQuestion.id as never as string,
-          text: essayAnswer || '' // Добавляем проверку на null/undefined
-        };
-      } else {
-        // Для вопросов с выбором отправляем выбранные варианты
-        answerData = {
-          questionId: currentQuestion.id as never as string,
-          selectedOptions: selectedAnswers
-        };
-      }
-  
-      // Отправляем ответ на сервер
-      submitAnswer.mutate(
-        {
-          sessionId,
-          data: answerData
-        },
-        {
-          onSuccess: (response) => {
-            // Обновляем счет на основе ответа сервера
-            if ('pointsEarned' in response) {
-              // const isCorrect = response.status === 'correct';
-              // ... обновляем результат ...
-            }
-            // Переходим к следующему вопросу
-            if (!gameStore.nextQuestion()) {
-              handleFinishGame();
-            };
-          },
-          onError: (error) => {
-            console.error('Failed to submit answer:', error);
-            gameStore.nextQuestion();
-          },
+const handleNextQuestion = () => {
+    if (!currentQuestion || !sessionId) return;
+
+    const isLastQuestion = currentQuestionIndex === (gameStore.questions.length - 1);
+
+    const answerData = {
+      questionId: currentQuestion.id,
+      userAnswer: [String(selectedAnswers[0])],
+      sessionId: sessionId
+    };
+
+    submitAnswer.mutate({
+      sessionId: sessionId,
+      data: answerData as any
+    }, {
+      onSuccess: () => {
+        if (isLastQuestion) {
+          // Шлем финальный запрос на завершение сессии
+          submitSession.mutate({ sessionId: sessionId! }, {
+            onSuccess: (response: any) => {
+  const finalScore = response.session.score;
+  const summary = response.session.summary;
+
+  // Оборачиваем изменения в runInAction, чтобы MobX не ругался
+  runInAction(() => {
+    gameStore.score = finalScore;
+    gameStore.answeredQuestions = Array(summary.correct).fill({
+      isCorrect: true,
+      questionId: 'fake-id',
+      selectedAnswers: []
+    });
+    gameStore.finishGame(); 
+  });
+}
+          });
+        } else {
+          // Если есть следующий вопрос — переключаем индекс
+          setCurrentQuestionIndex(prev => prev + 1);
+          setSelectedAnswers([]);
         }
-      );
-    }
+      }
+    });
   };
 
   const handleFinishGame = () => {

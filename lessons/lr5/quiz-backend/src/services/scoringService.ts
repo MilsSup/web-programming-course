@@ -1,18 +1,20 @@
 export class ScoringService {
+
   //Правила: +1 за правильный, -0.5 за неправильный, min 0  
-  scoreMultipleSelect(correctAnswers: string[], studentAnswers: string[]): number { 
-    let score = 0;
+  scoreMultipleSelect(correctAnswers: string[], studentAnswers: string[]): number {
+  const correctSet = new Set(correctAnswers);
+  let score = 0;
 
-    for (const answer of studentAnswers) {
-        if (correctAnswers.includes(answer)) {
-            score += 1; 
-        } else {
-            score -= 0.5; 
-        }
+  for (const answer of studentAnswers) {
+    if (correctSet.has(answer)) {
+      score += 1; 
+    } else {
+      score -= 0.5; 
     }
-
-    return Math.max(0, score);
   }
+
+  return Math.max(0, score);
+}
 
   //Параметры: массив оценок, рубрика с максимальными баллами
   scoreEssay(grades: number[], rubric: number[]): number {
