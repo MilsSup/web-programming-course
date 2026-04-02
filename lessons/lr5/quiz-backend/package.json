@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
+    "@hono/swagger-ui": "^0.6.1",
     "@prisma/client": "^6.19.2",
     "hono": "^4.11.10",
     "prisma": "^6.19.2",

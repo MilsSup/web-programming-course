@@ -75,7 +75,7 @@ const handleNextQuestion = () => {
 
     const answerData = {
       questionId: currentQuestion.id,
-      userAnswer: selectedAnswers.map(index => currentQuestion.options[index]),
+      userAnswer: selectedAnswers.map(index => currentQuestion.options?.[index]),
       sessionId: sessionId
     };
 

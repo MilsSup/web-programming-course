@@ -36,21 +36,17 @@ export const QuestionSchema = z.object({
     message: "Question type must be either 'multiple-select' or 'essay'" 
   }),
   points: z.number().min(1).max(100, { message: "Points must be between 1 and 100" }),
-  options: z.array(z.string()).optional(),
+  options: z.array(z.string()).min(2, "Минимум 2 варианта ответа").optional(),
   categoryId: z.string().min(1, { message: "Category ID is required" }),
-  correctAnswer: z.union([
-    z.array(z.string()),  // for multiple-select
-    z.string()             // for essay
-  ]).optional(),
+  correctAnswer: z.any().optional(),
 }).refine((data) => {
-  // If type is multiple-select, correctAnswer should be an array and options should be provided
   if (data.type === 'multiple-select') {
-    return Array.isArray(data.correctAnswer) && data.correctAnswer.length > 0;
+    // Проверяем, что ответ вообще есть (неважно, массив это или объект)
+    return data.correctAnswer !== undefined && data.correctAnswer !== null;
   }
-  // If type is essay, correctAnswer should be a string (optional for essay)
   return true;
 }, {
-  message: "Multiple-select questions require correctAnswer as array and options array",
+  message: "Для этого типа вопроса необходим правильный ответ",
   path: ["correctAnswer"]
 });
 

@@ -7,9 +7,28 @@ import sessions from './routes/sessions.js';
 import admin from './routes/admin.js';
 import categories from './routes/categories.js'
 import { HTTPException } from 'hono/http-exception';
+import { swaggerUI } from '@hono/swagger-ui'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const app = new Hono()
+// 1. Плеер Swagger (он у тебя уже работает)
+app.get('/ui', swaggerUI({ url: '/doc' }))
 
+// 2. Роут, который отдает саму схему (здесь сейчас ошибка 404)
+app.get('/doc', (c) => {
+  try {
+    // Мы используем join и process.cwd(), чтобы найти файл в корне папки quiz-backend
+    const schemaPath = join(process.cwd(), 'quiz-api-schema.yaml')
+    const schema = readFileSync(schemaPath, 'utf8')
+    
+    // Важно: возвращаем схему как обычный текст
+    return c.text(schema)
+  } catch (e) {
+    console.error("❌ Не удалось найти файл схемы:", e)
+    return c.text('Файл спецификации quiz-api-schema.yaml не найден в корне проекта', 404)
+  }
+})
 // глобальный обработчик ошибок
 app.onError((err, c) => {
   // если мы сами выбросили HTTPException (например, 404), возвращаем его как есть

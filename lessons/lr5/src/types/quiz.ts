@@ -1,10 +1,10 @@
 export interface Question {
   id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  type: string
+  text: string; 
+  options?: string[]; 
+  correctAnswer: any; 
+  difficulty?: 'easy' | 'medium' | 'hard'; 
+  type: string;
 }
 
 export interface Answer {

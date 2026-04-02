@@ -86,7 +86,7 @@ export const GameScreen    = observer(
                 </div>
         
                 <h2 className={`text-2xl font-bold mb-6 ${textColor}`}>
-                    {currentQuestion.question}
+                    {currentQuestion.text}
                 </h2>
         
                 {/* Рендерим в зависимости от типа вопроса */}
@@ -109,7 +109,7 @@ export const GameScreen    = observer(
                 ) : (
                     // Варианты ответов для вопросов с выбором
                     <div className="space-y-3">
-                    {currentQuestion.options.map((option: string, index: number) => {
+                    {currentQuestion.options?.map((option: string, index: number) => {
                         const isSelected = selectedAnswers.includes(index);
                         const isCorrect = false // index === currentQuestion.correctAnswer;
                         const showResult = selectedAnswers !== null;
