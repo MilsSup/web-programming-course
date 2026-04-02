@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import { sign, verify } from 'hono/jwt'
-import { HTTPException } from 'hono/http-exception' // Импортируем для обработки ошибок
+import { HTTPException } from 'hono/http-exception'
 import prisma from '../lib/prisma.js'
 import { authCallbackSchema } from '../utils/validation.js'
+import { getGitHubUserByCode } from '../services/github.js'
 
 const auth = new Hono()
 
@@ -16,7 +17,7 @@ const MOCK_USERS: Record<string, { id: string; email: string; name: string }> = 
 auth.post('/github/callback', async (c) => {
   const body = await c.req.json()
   
-  // 1. Валидация входных данных
+  // валидация входных данных
   const validation = authCallbackSchema.safeParse(body)
   if (!validation.success) {
     throw new HTTPException(400, { message: 'Validation failed' })
@@ -25,17 +26,29 @@ auth.post('/github/callback', async (c) => {
   const { code } = validation.data
   let githubUser
 
-  // 2. Mock режим (Checkpoint 2)
-  if (code.startsWith('test_')) {
-    githubUser = MOCK_USERS[code] || {
-      id: `mock_static_${code}`, 
-      email: `user_${code}@example.com`,
-      name: `User ${code}`
-    }
-  } else {
-    // Если код не тестовый, а реальный OAuth не настроен
-    throw new HTTPException(501, { message: 'Real GitHub OAuth not implemented' })
+// Mock режим (Checkpoint 2)
+if (code.startsWith('test_')) {
+  githubUser = MOCK_USERS[code] || {
+    id: `mock_static_${code}`, 
+    email: `user_${code}@example.com`,
+    name: `User ${code}`
+  };
+} else {
+  try {
+    const realGitHubData = await getGitHubUserByCode(code);
+
+    githubUser = {
+      id: String(realGitHubData.id), 
+      // GitHub может не отдать email (если он скрыт юзером), делаем fallback
+      email: realGitHubData.email || `github_${realGitHubData.id}@example.com`,
+      name: realGitHubData.name || 'GitHub User'
+    };
+  } catch (error) {
+    // Если GitHub послал нас подальше (неверный код, нет ключей в .env)
+    console.error("Ошибка GitHub OAuth:", error);
+    throw new HTTPException(400, { message: 'Не удалось авторизоваться через GitHub' });
   }
+}
 
   // 3. Сохранение/обновление пользователя в БД
   const user = await prisma.user.upsert({
