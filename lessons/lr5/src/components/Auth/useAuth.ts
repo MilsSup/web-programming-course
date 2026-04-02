@@ -1,14 +1,34 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocalStorageWithSubscription } from './useLocalStorageWithSubscription';
-import { getApiAuthGithubCallback } from '../../../generated/api/auth/auth';
+import { postApiAuthGithubCallback, getApiAuthMe } from '../../../generated/api/auth/auth';
+import { useQuery } from '@tanstack/react-query';
 
 const GITHUB_CLIENT_ID = 'Ov23lieQV5VzylgzlWhm'; 
 
 export const useAuth = () => {
-  const { isLoading, data: token, setValue } = useLocalStorageWithSubscription('auth_token');
-  
-  // предохранитель от двойного срабатывания React Strict Mode
+  const { isLoading: isTokenLoading, data: token, setValue: setToken } = useLocalStorageWithSubscription<string>('auth_token');
+  const { data: user, setValue: setUser } = useLocalStorageWithSubscription<any>('auth_user');
+
   const isCodeProcessed = useRef(false);
+
+  // 1. Используем имя apiResponse для соответствия типам
+  const { data: apiResponse } = useQuery({
+    queryKey: ['auth_me'],
+    queryFn: () => getApiAuthMe(),
+    enabled: !!token, 
+    retry: false,
+  });
+
+  // 2. Умная синхронизация с обходом ошибки типов через (apiResponse as any)
+  useEffect(() => {
+    // Нам нужно достать именно поле .user из ответа бэкенда
+    const userData = (apiResponse as any)?.user || apiResponse;
+    
+    if (userData && JSON.stringify(userData) !== JSON.stringify(user)) {
+      console.log("🔄 Обновляю данные пользователя из API:", userData);
+      setUser(userData);
+    }
+  }, [apiResponse, user, setUser]);
 
   const login = useCallback(() => {
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}`;
@@ -18,27 +38,29 @@ export const useAuth = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
 
-    // Проверяем: есть ли код И не обрабатывали ли мы его уже?
     if (code && !isCodeProcessed.current) {
-      // Сразу защелкиваем предохранитель!
       isCodeProcessed.current = true; 
 
-      getApiAuthGithubCallback({ code })
-        .then(({ token }) => {
-          setValue(token);
+      postApiAuthGithubCallback({ code })
+        .then((res) => {
+          if (res.token) setToken(res.token);
+          
+          const initialUser = (res as any).user || res;
+          if (initialUser) setUser(initialUser);
+
           window.history.replaceState({}, document.title, window.location.pathname);
         })
         .catch((error) => {
-          console.error("Ошибка при обмене кода на токен:", error);
-          // Если реально произошла ошибка, снимаем предохранитель, чтобы можно было попробовать снова
+          console.error("Ошибка авторизации:", error);
           isCodeProcessed.current = false; 
         });
     }
-  }, [setValue]);
+  }, [setToken, setUser]);
 
   const logout = useCallback(() => {
-    setValue(null);
-  }, [setValue]);
+    setToken(null);
+    setUser(null);
+  }, [setToken, setUser]);
 
-  return { isLoading, login, logout, token };
+  return { isLoading: isTokenLoading, login, logout, token, user };
 };

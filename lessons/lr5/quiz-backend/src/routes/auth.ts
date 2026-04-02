@@ -45,7 +45,7 @@ if (code.startsWith('test_')) {
     };
   } catch (error) {
     // Если GitHub послал нас подальше (неверный код, нет ключей в .env)
-    console.error("Ошибка GitHub OAuth:", error);
+    console.error("Детали от GitHub:", (error as any).response?.data || (error as any).message);
     throw new HTTPException(400, { message: 'Не удалось авторизоваться через GitHub' });
   }
 }
@@ -53,7 +53,10 @@ if (code.startsWith('test_')) {
   // 3. Сохранение/обновление пользователя в БД
   const user = await prisma.user.upsert({
     where: { githubId: githubUser.id },
-    update: { name: githubUser.name, email: githubUser.email },
+    update: { 
+      // УБИРАЕМ name отсюда, чтобы GitHub не затирал твои правки профиля!
+      email: githubUser.email 
+    },
     create: {
       githubId: githubUser.id,
       name: githubUser.name,
@@ -77,6 +80,42 @@ if (code.startsWith('test_')) {
     token,
     user: { id: user.id, email: user.email, name: user.name, githubId: user.githubId }
   })
+})
+
+auth.put('/profile', async (c) => {
+  const authHeader = c.req.header('Authorization')
+  const token = authHeader?.split(' ')[1]
+  const secret = process.env.JWT_SECRET || 'dev-secret-key'
+  
+  try {
+    const payload = await verify(token!, secret, 'HS256')
+    const userId = payload.sub as string
+    
+    // 1. Достаем всё, что прислал фронтенд
+    const body = await c.req.json()
+    console.log("📦 Фронтенд прислал в профиль:", body) // СМОТРИ ЭТО В ТЕРМИНАЛЕ!
+
+    // 2. Пытаемся найти имя в разных полях (библиотеки бывают капризными)
+    const name = body.name || body.firstName || '';
+    const surname = body.surname || body.lastName || '';
+    
+    const fullName = `${name} ${surname}`.trim() || "User";
+
+    // 3. Обновляем в базе
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        name: fullName // Записываем в то самое поле, которое читает роут /me
+      }
+    })
+
+    console.log("✅ Юзер в базе обновлен:", updatedUser.name)
+
+    return c.json({ success: true, user: updatedUser })
+  } catch (e) {
+    console.error("❌ Ошибка обновления:", e)
+    throw new HTTPException(401, { message: 'Ошибка авторизации' })
+  }
 })
 
 // GET /api/auth/me - Получение текущего пользователя
