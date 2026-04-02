@@ -11,7 +11,7 @@ import { swaggerUI } from '@hono/swagger-ui'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const app = new Hono()
+export const app = new Hono()
 // 1. Плеер Swagger (он у тебя уже работает)
 app.get('/ui', swaggerUI({ url: '/doc' }))
 
