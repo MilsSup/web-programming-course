@@ -73,9 +73,13 @@ const handleNextQuestion = () => {
 
     const isLastQuestion = currentQuestionIndex === (gameStore.questions.length - 1);
 
+    const userAnswerValue = currentQuestion.type === 'essay' 
+      ? essayAnswer // Для эссе берем текст из textarea
+      : selectedAnswers.map(index => currentQuestion.options?.[index]);
+
     const answerData = {
       questionId: currentQuestion.id,
-      userAnswer: selectedAnswers.map(index => currentQuestion.options?.[index]),
+      userAnswer: userAnswerValue,
       sessionId: sessionId
     };
 
