@@ -5,9 +5,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test:unit": "vitest run src/**/*.unit.test.ts",
-    "test:feature": "vitest run src/**/*.feature.test.ts",
-    "test": "vitest run src/**/*.{unit,feature}.test.ts",
+    "test:unit": "vitest run unit", 
+    "test:feature": "vitest run feature",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },

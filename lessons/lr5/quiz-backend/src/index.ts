@@ -63,9 +63,9 @@ app.route('/api/sessions', sessions)
 app.route('/api/admin', admin)
 app.route('/api/categories', categories)
 
-serve({
-  fetch: app.fetch,
-  port: 3000
-}, (info) => {
-  console.log(`Server is running on http://localhost:${info.port}`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  serve({
+    fetch: app.fetch,
+    port: 3000
+  });
+}
