@@ -15,19 +15,17 @@ import { runInAction } from 'mobx';
  * Task 4: Комбинированное использование MobX + Zustand
  */
 const Task4 = observer(() => {
-  // MobX - бизнес-логика
+  // 1. РАСКОММЕНТИРУЕМ MOBX-ПЕРЕМЕННЫЕ
   const { 
     gameStatus, 
     currentQuestion,
-    //selectedAnswers, 
+    selectedAnswers, // <-- Вернули
     essayAnswer,
     score, 
-    //progress,
     questions,
     correctAnswersCount,
-    //currentQuestionIndex,
-    //isLastQuestion,
-    //setEssayAnswer,
+    currentQuestionIndex, // <-- Вернули
+    isLastQuestion, // <-- Вернули
   } = gameStore;
 
   // Zustand - UI состояние
@@ -39,8 +37,6 @@ const Task4 = observer(() => {
   const createSession = usePostApiSessions();
   const submitAnswer = usePostApiSessionsSessionIdAnswers();
   const submitSession = usePostApiSessionsSessionIdSubmit();
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   
   
   const handleStartGame = () => {
@@ -79,7 +75,7 @@ const handleNextQuestion = () => {
 
     const answerData = {
       questionId: currentQuestion.id,
-      userAnswer: [String(selectedAnswers[0])],
+      userAnswer: selectedAnswers.map(index => currentQuestion.options[index]),
       sessionId: sessionId
     };
 
@@ -89,28 +85,26 @@ const handleNextQuestion = () => {
     }, {
       onSuccess: () => {
         if (isLastQuestion) {
-          // Шлем финальный запрос на завершение сессии
           submitSession.mutate({ sessionId: sessionId! }, {
             onSuccess: (response: any) => {
-  const finalScore = response.session.score;
-  const summary = response.session.summary;
+              const finalScore = response.session.score;
+              const summary = response.session.summary;
 
-  // Оборачиваем изменения в runInAction, чтобы MobX не ругался
-  runInAction(() => {
-    gameStore.score = finalScore;
-    gameStore.answeredQuestions = Array(summary.correct).fill({
-      isCorrect: true,
-      questionId: 'fake-id',
-      selectedAnswers: []
-    });
-    gameStore.finishGame(); 
-  });
-}
+              runInAction(() => {
+                gameStore.score = finalScore;
+                gameStore.answeredQuestions = Array(summary.correct).fill({
+                  isCorrect: true,
+                  questionId: 'fake-id',
+                  selectedAnswers: []
+                });
+                gameStore.finishGame(); 
+              });
+            }
           });
         } else {
-          // Если есть следующий вопрос — переключаем индекс
-          setCurrentQuestionIndex(prev => prev + 1);
-          setSelectedAnswers([]);
+          // 4. ДЕЛЕГИРУЕМ ПЕРЕКЛЮЧЕНИЕ ВОПРОСА В MOBX
+          // Экшен nextQuestion сам увеличит индекс и очистит selectedAnswers
+          gameStore.nextQuestion();
         }
       }
     });

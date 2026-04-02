@@ -36,6 +36,7 @@ export const QuestionSchema = z.object({
     message: "Question type must be either 'multiple-select' or 'essay'" 
   }),
   points: z.number().min(1).max(100, { message: "Points must be between 1 and 100" }),
+  options: z.array(z.string()).optional(),
   categoryId: z.string().min(1, { message: "Category ID is required" }),
   correctAnswer: z.union([
     z.array(z.string()),  // for multiple-select

@@ -15,21 +15,56 @@ export class SessionService {
 
     if (!question) throw new Error('Question not found');
 
-    let score: number | null = null;
+    let score: number = 0; // По умолчанию 0, чтобы избавиться от null
+    let isCorrect: boolean = false;
+    let feedback: string = "Ответ не проверен";
 
-    if (question.type === 'multiple-select') {
-      score = scoringService.scoreMultipleSelect(
-        question.correctAnswer as string[],
-        userAnswer as string[]
-      );
+    // Проверяем: если у вопроса вообще есть правильный ответ в базе, начинаем считать
+    // ... начало метода submitAnswer ...
+    // Проверяем: если у вопроса вообще есть правильный ответ в базе, начинаем считать
+    if (question.correctAnswer) {
+      
+      let correctArr: string[] = [];
+      
+      try {
+        // Prisma может отдать Json как строку или уже как готовый объект
+        const parsed = typeof question.correctAnswer === 'string' 
+          ? JSON.parse(question.correctAnswer) 
+          : question.correctAnswer;
+
+        // 1. Сценарий: Если препод сохранил как объект { options: [...], correct: "a" }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          // @ts-ignore - игнорируем ругань TS на неизвестные поля
+          if (parsed.correct) {
+            // @ts-ignore
+            correctArr = Array.isArray(parsed.correct) ? parsed.correct : [String(parsed.correct)];
+          }
+        } 
+        // 2. Сценарий: Если это обычный массив ["a"] (как мы и ожидали изначально)
+        else if (Array.isArray(parsed)) {
+          correctArr = parsed.map(String);
+        }
+      } catch (e) {
+        console.error("Ошибка парсинга correctAnswer:", e);
+      }
+        
+      const userArr = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+
+      // Считаем баллы
+      score = scoringService.scoreMultipleSelect(correctArr, userArr);
+      
+      isCorrect = score > 0;
+      feedback = isCorrect ? "Отличная работа! Ответ верный." : "К сожалению, в ответе есть ошибка.";
     }
 
     return await prisma.answer.create({
       data: {
         sessionId,
         questionId,
-        userAnswer: JSON.stringify(userAnswer),
-        score
+        userAnswer, 
+        score,
+        isCorrect,
+        feedback
       }
     });
   }
