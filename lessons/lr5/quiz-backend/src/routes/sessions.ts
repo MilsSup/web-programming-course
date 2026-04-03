@@ -69,22 +69,36 @@ sessions.post('/', async (c) => {
   
   const actualCount = Math.min(questionCount, totalInCategory);
   
-  // 4. Получение действительно случайных вопросов (Checkpoint 6: Optimization)
-  // Чтобы вопросы были разными каждый раз, используем orderBy с рандомом (зависит от БД)
-  // Для SQLite/PostgreSQL самый простой способ - через необработанный запрос или логику пропусков (skip)
-  const questions = await prisma.question.findMany({
+  // 4. Получение действительно случайных вопросов (Честный рандом)
+  
+  // 4.1. Достаем из базы ТОЛЬКО идентификаторы всех вопросов категории (это мгновенный запрос)
+  const allQuestions = await prisma.question.findMany({
     where: { categoryId },
-    take: actualCount,
-    // Примечание: для полноценного рандома в Prisma часто используют 
-    // получение всех ID и выборку случайных, либо raw query 'ORDER BY RANDOM()'
-    orderBy: { createdAt: 'desc' },
-    include: { answers: true }
+    select: { id: true } // Берем только id, чтобы не тянуть лишние данные
   });
   
-  // 5. Создание сессии
+  // 4.2. Перемешиваем массив случайным образом (простой аналог алгоритма Фишера-Йетса)
+  const shuffledIds = allQuestions.sort(() => 0.5 - Math.random());
+  
+  // 4.3. Отрезаем нужное количество (actualCount) и оставляем только массив строк (ID)
+  const selectedIds = shuffledIds.slice(0, actualCount).map(q => q.id);
+  
+  // 4.4. Достаем полные данные только для тех вопросов, чьи ID мы случайно выбрали
+  const questions = await prisma.question.findMany({
+    where: {
+      id: { in: selectedIds } // Выбираем только те, что попали в выборку
+    }
+  });
+
+  // 4.5. База данных может вернуть результаты отсортированными по ID, 
+  // поэтому перемешиваем финальный массив еще раз перед отдачей клиенту
+  questions.sort(() => 0.5 - Math.random());
+  
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 1);
   
+
+  // Создание сессии и ПРИВЯЗКА вопросов
   const session = await prisma.session.create({
     data: {
       userId: user.id,
@@ -92,6 +106,10 @@ sessions.post('/', async (c) => {
       status: 'in_progress',
       score: 0,
       startedAt: new Date(),
+      // СВЯЗЬ:
+      questions: {
+        connect: questions.map((q) => ({ id: q.id }))
+      }
     }
   });
   

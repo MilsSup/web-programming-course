@@ -36,6 +36,7 @@ model Question {
   correctAnswer  Json?    // Правильные ответы для автопроверки
   points         Int      @default(1)
   answers        Answer[]
+  sessions       Session[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -50,6 +51,7 @@ model Session {
   expiresAt   DateTime
   completedAt DateTime?
   answers     Answer[]
+  questions   Question[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
