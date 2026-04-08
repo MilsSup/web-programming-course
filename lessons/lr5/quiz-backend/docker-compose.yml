@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # новая база данных PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: quizuser
+      POSTGRES_PASSWORD: quizpassword
+      POSTGRES_DB: quizdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Проверка здоровья БД (чтобы бэкенд не стартовал раньше времени)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quizuser -d quizdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # бэкенд
+  backend:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://quizuser:quizpassword@db:5432/quizdb?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata: # cохраняем данные БД на жестком диске
