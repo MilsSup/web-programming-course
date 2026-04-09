@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 type ServerTodo = {
   id: number;
@@ -90,43 +90,41 @@ export default function App() {
   return saved ? JSON.parse(saved) : [];
   });
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
-  
+  const isSyncingRef = useRef(false);
+
   const refreshFromServer = useCallback(async () => {
     const serverTodos = await apiFetchTodos();
     setTodos(serverTodos);
   }, []);
 
   const syncQueue = useCallback(async () => {
-    if (queueActions.length === 0) return;
-
-    setSyncStatus('syncing');
-    setMessage('Синхронизация данных...');
+    // Если уже синхронизируемся или очередь пуста — выходим
+    if (isSyncingRef.current || queueActions.length === 0) return;
     
-    const remainingActions = [...queueActions];
+    isSyncingRef.current = true;
+    setSyncStatus('syncing');
 
-    for (const action of queueActions) {
+    // Работаем с копией очереди из текущего замыкания
+    const actionsToProcess = [...queueActions];
+
+    for (const action of actionsToProcess) {
       try {
         if (action.type === 'create') await apiCreate(action.payload.title);
         if (action.type === 'toggle') await apiToggle(action.payload.id, action.payload.done);
         if (action.type === 'delete') await apiDelete(action.payload.id);
         
-        remainingActions.shift(); 
+        // Удаляем конкретно ЭТО действие из стейта по его ID
+        setQueueActions(prev => prev.filter(a => a.id !== action.id));
       } catch (err) {
-        console.error('Ошибка синхронизации:', action, err);
+        console.error('Ошибка синхронизации действия:', action, err);
         setSyncStatus('error');
         break; 
       }
     }
 
-    setQueueActions(remainingActions);
     await refreshFromServer();
-    
-    if (remainingActions.length === 0) {
-      setSyncStatus('idle');
-      setMessage('Все данные успешно синхронизированы!');
-    } else {
-      setMessage('Не удалось синхронизировать часть данных. Попробуем позже.');
-    }
+    setSyncStatus('idle');
+    isSyncingRef.current = false;
   }, [queueActions, refreshFromServer]);
 
   const addToQueue = (type: QueueAction['type'], payload: any) => {
@@ -182,39 +180,25 @@ export default function App() {
   useEffect(() => {
     registerServiceWorkerStarter();
 
-    let cancelled = false; // <--- ДОБАВЬ ЭТУ СТРОЧКУ
-
     const bootstrap = async () => {
       try {
+        if (navigator.onLine) {
+          await syncQueue();
+        }
         await refreshFromServer();
-        if (!cancelled) setMessage(''); 
-      } catch {
-        if (!cancelled) {
-          // Проверяем статус сети, чтобы не пугать ошибкой бэкенда в офлайне
-          if (navigator.onLine) {
-            setMessage('Не удалось загрузить данные. Проверьте, что backend запущен.');
-          } else {
-            setMessage('Работаем в офлайн-режиме (данные из кэша).');
-          }
-        }
+      } catch (e) {
+        console.error('Bootstrap error:', e);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
     void bootstrap();
-
-    return () => {
-      cancelled = true; // <--- И ЭТУ СТРОЧКУ (Cleanup функция)
-    };
-  }, [refreshFromServer, syncQueue]);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Теперь вызываем актуальную версию функции
       void syncQueue(); 
     };
     const handleOffline = () => {

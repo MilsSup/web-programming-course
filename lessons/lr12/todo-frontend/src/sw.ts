@@ -30,7 +30,7 @@ sw.addEventListener('activate', (event) => {
   void sw.clients.claim();
 });
 
-// 4. Перехват запросов (Стратегия: Network-first)
+// 4. Перехват запросов
 sw.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -45,8 +45,7 @@ sw.addEventListener('fetch', (event) => {
     fetch(event.request).catch(async () => {
       const cache = await caches.open(CACHE_NAME);
       const cachedResponse = await cache.match(event.request);
-      
-      // Если нашли в кэше (статику) — отдаем. Если нет — возвращаем статус 503.
+    
       return cachedResponse || new Response('Offline content not available', { 
         status: 503,
         statusText: 'Service Unavailable' 
