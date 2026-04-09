@@ -2,9 +2,9 @@ name: Backend CI
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "s2"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "s2"]
   workflow_dispatch:
 
 jobs:
